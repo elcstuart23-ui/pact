@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Pact — accountability with friends</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    --bg: #ffffff;
+    --bg2: #f7f7f5;
+    --bg3: #f0efea;
+    --text: #1a1a18;
+    --text2: #6b6b66;
+    --text3: #a0a09a;
+    --border: rgba(0,0,0,0.1);
+    --border2: rgba(0,0,0,0.18);
+    --teal: #1D9E75;
+    --teal-bg: #E1F5EE;
+    --teal-text: #085041;
+    --amber-bg: #FAEEDA;
+    --amber-text: #633806;
+    --red-bg: #FCEBEB;
+    --red-text: #791F1F;
+    --green-bg: #EAF3DE;
+    --green-text: #27500A;
+    --radius: 12px;
+    --radius-sm: 8px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1c1c1a;
+      --bg2: #252522;
+      --bg3: #2e2e2b;
+      --text: #e8e8e0;
+      --text2: #a0a098;
+      --text3: #6b6b64;
+      --border: rgba(255,255,255,0.1);
+      --border2: rgba(255,255,255,0.18);
+      --teal-bg: #04342C;
+      --teal-text: #9FE1CB;
+      --amber-bg: #412402;
+      --amber-text: #FAC775;
+      --red-bg: #501313;
+      --red-text: #F7C1C1;
+      --green-bg: #173404;
+      --green-text: #C0DD97;
+    }
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { font-size: 16px; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg3); color: var(--text); min-height: 100vh; }
+
+  /* Layout */
+  .screen { display: none; min-height: 100vh; }
+  .screen.active { display: flex; flex-direction: column; }
+  .app-shell { max-width: 480px; margin: 0 auto; width: 100%; padding: 0 0 80px; }
+
+  /* Onboarding */
+  .onboard { align-items: center; justify-content: center; padding: 2rem 1.5rem; }
+  .onboard-inner { width: 100%; max-width: 360px; }
+  .logo { font-size: 32px; font-weight: 600; color: var(--text); letter-spacing: -0.5px; margin-bottom: 6px; }
+  .tagline { font-size: 15px; color: var(--text2); margin-bottom: 2.5rem; line-height: 1.5; }
+  .field { margin-bottom: 12px; }
+  .field label { display: block; font-size: 12px; font-weight: 500; color: var(--text2); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 5px; }
+  input[type=text], input[type=email], textarea, select {
+    width: 100%; padding: 10px 14px; font-size: 15px; border: 0.5px solid var(--border2);
+    border-radius: var(--radius-sm); background: var(--bg); color: var(--text);
+    outline: none; transition: border-color .15s; font-family: inherit;
+  }
+  input:focus, textarea:focus { border-color: var(--teal); }
+  textarea { resize: vertical; line-height: 1.5; }
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 10px 20px; font-size: 14px; font-weight: 500; border-radius: var(--radius-sm); border: 0.5px solid var(--border2); background: transparent; color: var(--text); cursor: pointer; transition: all .15s; font-family: inherit; }
+  .btn:hover { background: var(--bg2); }
+  .btn:active { transform: scale(0.98); }
+  .btn-primary { background: var(--text); color: var(--bg); border-color: var(--text); }
+  .btn-primary:hover { opacity: 0.85; background: var(--text); }
+  .btn-full { width: 100%; }
+  .btn-sm { padding: 6px 12px; font-size: 13px; }
+  .actions { display: flex; flex-direction: column; gap: 8px; margin-top: 1.5rem; }
+  .divider-text { text-align: center; font-size: 12px; color: var(--text3); margin: 4px 0; }
+  .err { font-size: 13px; color: #A32D2D; margin-top: 8px; min-height: 18px; }
+
+  /* Top bar */
+  .topbar { background: var(--bg); border-bottom: 0.5px solid var(--border); padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 10; }
+  .topbar-left h1 { font-size: 17px; font-weight: 600; color: var(--text); }
+  .topbar-left p { font-size: 12px; color: var(--text2); margin-top: 1px; }
+  .topbar-right { text-align: right; }
+  .topbar-right .username { font-size: 13px; font-weight: 500; color: var(--text); }
+  .topbar-right .leave { font-size: 11px; color: var(--text3); cursor: pointer; margin-top: 1px; }
+  .topbar-right .leave:hover { color: #A32D2D; }
+
+  /* Bottom nav */
+  .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; background: var(--bg); border-top: 0.5px solid var(--border); display: flex; z-index: 10; }
+  .nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 10px 4px 12px; cursor: pointer; border: none; background: transparent; color: var(--text3); font-family: inherit; transition: color .15s; gap: 3px; }
+  .nav-item.active { color: var(--text); }
+  .nav-item svg { width: 20px; height: 20px; }
+  .nav-label { font-size: 10px; font-weight: 500; }
+
+  /* Views */
+  .view { display: none; padding: 16px; }
+  .view.active { display: block; }
+
+  /* Cards */
+  .card { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius); padding: 16px 20px; margin-bottom: 12px; }
+  .section-label { font-size: 11px; font-weight: 600; color: var(--text2); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 10px; margin-top: 4px; }
+
+  /* Stats */
+  .stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 16px; }
+  .stat-card { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius-sm); padding: 12px; text-align: center; }
+  .stat-n { font-size: 22px; font-weight: 600; color: var(--text); }
+  .stat-l { font-size: 11px; color: var(--text2); margin-top: 2px; }
+
+  /* Feed */
+  .feed-item { display: flex; align-items: flex-start; gap: 10px; padding: 10px 0; border-bottom: 0.5px solid var(--border); }
+  .feed-item:last-child { border-bottom: none; }
+  .avatar { width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; flex-shrink: 0; }
+  .feed-text { font-size: 14px; color: var(--text); line-height: 1.4; }
+  .feed-text strong { font-weight: 600; }
+  .feed-time { font-size: 11px; color: var(--text3); margin-top: 3px; }
+  .badge { display: inline-block; font-size: 10px; font-weight: 500; padding: 2px 7px; border-radius: 99px; margin-left: 5px; vertical-align: middle; }
+  .badge-hook { background: var(--amber-bg); color: var(--amber-text); }
+  .badge-streak { background: var(--green-bg); color: var(--green-text); }
+  .badge-broken { background: var(--red-bg); color: var(--red-text); }
+  .badge-new { background: var(--teal-bg); color: var(--teal-text); }
+
+  /* Tasks */
+  .task-row { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-bottom: 0.5px solid var(--border); }
+  .task-row:last-child { border-bottom: none; }
+  .task-check { width: 18px; height: 18px; border-radius: 5px; border: 1.5px solid var(--border2); cursor: pointer; flex-shrink: 0; appearance: none; background: transparent; transition: all .15s; }
+  .task-check:checked { background: var(--teal); border-color: var(--teal); }
+  .task-name { flex: 1; font-size: 14px; color: var(--text); }
+  .task-name.done { text-decoration: line-through; color: var(--text3); }
+  .priv-btn { font-size: 10px; font-weight: 500; color: var(--text3); cursor: pointer; padding: 2px 7px; border: 0.5px solid var(--border); border-radius: 99px; background: transparent; white-space: nowrap; transition: all .15s; }
+  .priv-btn.on { background: var(--bg2); color: var(--text2); border-color: var(--border2); }
+  .del-btn { font-size: 16px; color: var(--text3); cursor: pointer; background: transparent; border: none; padding: 2px 4px; line-height: 1; }
+  .del-btn:hover { color: #A32D2D; }
+  .add-row { display: flex; gap: 8px; margin-top: 14px; }
+  .add-row input { flex: 1; }
+
+  /* Leaderboard */
+  .lb-row { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-bottom: 0.5px solid var(--border); }
+  .lb-row:last-child { border-bottom: none; }
+  .lb-rank { font-size: 13px; font-weight: 600; color: var(--text2); width: 18px; flex-shrink: 0; }
+  .lb-name { flex: 1; font-size: 14px; color: var(--text); }
+  .lb-bar-wrap { width: 90px; height: 5px; background: var(--bg3); border-radius: 3px; overflow: hidden; flex-shrink: 0; }
+  .lb-bar { height: 100%; border-radius: 3px; background: var(--teal); transition: width .5s; }
+  .lb-bar.low { background: #E24B4A; }
+  .lb-pct { font-size: 12px; color: var(--text2); min-width: 32px; text-align: right; flex-shrink: 0; }
+
+  /* Slider check-in */
+  .slider-row { margin-bottom: 18px; }
+  .slider-label { display: flex; justify-content: space-between; font-size: 13px; color: var(--text2); margin-bottom: 7px; }
+  .slider-label span { font-weight: 600; color: var(--text); }
+  input[type=range] { width: 100%; accent-color: var(--teal); }
+
+  /* Group/invite */
+  .code-box { font-family: 'SF Mono', 'Fira Mono', monospace; font-size: 28px; font-weight: 700; letter-spacing: .2em; padding: 16px 24px; border: 0.5px solid var(--border2); border-radius: var(--radius); display: inline-block; color: var(--text); margin: 8px 0 12px; }
+  .member-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 0.5px solid var(--border); }
+  .member-row:last-child { border-bottom: none; }
+
+  /* Empty states */
+  .empty { text-align: center; padding: 2rem 0; font-size: 14px; color: var(--text2); }
+
+  /* Toast */
+  .toast { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%) translateY(20px); background: var(--text); color: var(--bg); font-size: 13px; padding: 8px 18px; border-radius: 99px; opacity: 0; transition: all .3s; pointer-events: none; white-space: nowrap; z-index: 100; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* Pulse animation for live feed */
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.5} }
+  .live-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--teal); display: inline-block; margin-right: 5px; animation: pulse 2s ease-in-out infinite; }
+</style>
+</head>
+<body>
+
+<!-- ONBOARDING SCREEN -->
+<div id="screen-onboard" class="screen active onboard">
+  <div class="onboard-inner">
+    <div class="logo">Pact</div>
+    <div class="tagline">Log your goals. Cheer each other on.<br>Lowest completion % owes the group.</div>
+
+    <div class="field">
+      <label>Your name</label>
+      <input type="text" id="setup-name" placeholder="First name" maxlength="20" autocomplete="given-name"/>
+    </div>
+
+    <div id="join-fields" style="display:none">
+      <div class="field">
+        <label>Group code</label>
+        <input type="text" id="join-code" placeholder="6-character code" maxlength="6" style="text-transform:uppercase; letter-spacing:.1em;"/>
+      </div>
+    </div>
+
+    <div id="setup-err" class="err"></div>
+
+    <div class="actions">
+      <button class="btn btn-primary btn-full" id="main-btn" onclick="handleMain()">Create a group</button>
+      <div class="divider-text">or</div>
+      <button class="btn btn-full" id="mode-btn" onclick="toggleMode()">Join an existing group</button>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN APP SCREEN -->
+<div id="screen-app" class="screen">
+  <div class="app-shell">
+
+    <div class="topbar">
+      <div class="topbar-left">
+        <h1 id="topbar-title">Pact</h1>
+        <p id="topbar-sub"></p>
+      </div>
+      <div class="topbar-right">
+        <div class="username" id="topbar-user"></div>
+        <div class="leave" onclick="leaveGroup()">leave group</div>
+      </div>
+    </div>
+
+    <!-- FEED VIEW -->
+    <div id="view-feed" class="view active">
+      <div class="stats-row">
+        <div class="stat-card"><div class="stat-n" id="s-streak">0d</div><div class="stat-l">my streak</div></div>
+        <div class="stat-card"><div class="stat-n" id="s-done">0/0</div><div class="stat-l">done today</div></div>
+        <div class="stat-card"><div class="stat-n" id="s-members">1</div><div class="stat-l">members</div></div>
+      </div>
+      <div class="section-label"><span class="live-dot"></span>group activity</div>
+      <div class="card" id="feed-list"><div class="empty">No activity yet — add your first task.</div></div>
+    </div>
+
+    <!-- MY DAY VIEW -->
+    <div id="view-myday" class="view">
+      <div class="section-label">today's tasks</div>
+      <div class="card">
+        <div id="task-list"><div class="empty">No tasks yet. Add one below.</div></div>
+        <div class="add-row">
+          <input type="text" id="new-task" placeholder="Add a task..." maxlength="80" onkeydown="if(event.key==='Enter')addTask()"/>
+          <button class="btn btn-primary" onclick="addTask()">Add</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- REFLECT VIEW -->
+    <div id="view-reflect" class="view">
+      <div class="section-label">end of day reflection</div>
+      <div class="card">
+        <div style="margin-bottom:14px">
+          <div style="font-size:13px;color:var(--text2);margin-bottom:6px">What went well today?</div>
+          <textarea id="went-well" rows="3" placeholder="Even small wins count..."></textarea>
+        </div>
+        <div style="margin-bottom:18px">
+          <div style="font-size:13px;color:var(--text2);margin-bottom:6px">What didn't go as planned?</div>
+          <textarea id="didnt-go" rows="3" placeholder="Be honest — no judgment here..."></textarea>
+        </div>
+        <button class="btn btn-primary btn-full" onclick="saveReflection()">Save reflection</button>
+      </div>
+    </div>
+
+    <!-- WEEKLY VIEW -->
+    <div id="view-weekly" class="view">
+      <div class="section-label">weekly check-in</div>
+      <div class="card">
+        <div class="slider-row">
+          <div class="slider-label">Energy this week <span id="v-energy">5</span>/10</div>
+          <input type="range" min="1" max="10" step="1" value="5" oninput="document.getElementById('v-energy').textContent=this.value"/>
+        </div>
+        <div class="slider-row">
+          <div class="slider-label">Focus &amp; clarity <span id="v-focus">5</span>/10</div>
+          <input type="range" min="1" max="10" step="1" value="5" oninput="document.getElementById('v-focus').textContent=this.value"/>
+        </div>
+        <div class="slider-row">
+          <div class="slider-label">Progress on goals <span id="v-progress">5</span>/10</div>
+          <input type="range" min="1" max="10" step="1" value="5" oninput="document.getElementById('v-progress').textContent=this.value"/>
+        </div>
+        <div class="slider-row">
+          <div class="slider-label">Mood overall <span id="v-mood">5</span>/10</div>
+          <input type="range" min="1" max="10" step="1" value="5" oninput="document.getElementById('v-mood').textContent=this.value"/>
+        </div>
+        <div class="slider-row">
+          <div class="slider-label">Group accountability helped <span id="v-group">5</span>/10</div>
+          <input type="range" min="1" max="10" step="1" value="5" oninput="document.getElementById('v-group').textContent=this.value"/>
+        </div>
+        <button class="btn btn-primary btn-full" onclick="saveWeekly()">Submit check-in</button>
+      </div>
+
+      <div style="margin-top:8px">
+        <div class="section-label">this week's leaderboard</div>
+        <div class="card" id="leaderboard"><div class="empty">Loading...</div></div>
+      </div>
+    </div>
+
+    <!-- GROUP VIEW -->
+    <div id="view-group" class="view">
+      <div class="section-label">invite friends</div>
+      <div class="card" style="text-align:center">
+        <div style="font-size:13px;color:var(--text2);">Share this code with friends</div>
+        <div class="code-box" id="code-display"></div>
+        <div style="font-size:12px;color:var(--text2);margin-bottom:14px">They enter it when they join Pact</div>
+        <button class="btn btn-sm btn-full" onclick="copyCode()">Copy code</button>
+      </div>
+
+      <div class="section-label" style="margin-top:4px">members</div>
+      <div class="card" id="members-list"></div>
+
+      <div class="section-label" style="margin-top:4px">the stake</div>
+      <div class="card">
+        <div style="font-size:13px;color:var(--text2);margin-bottom:8px">Lowest completion % this week owes the group:</div>
+        <div style="display:flex;gap:8px">
+          <input type="text" id="stake-input" placeholder="e.g. a round of coffees" style="flex:1"/>
+          <button class="btn" onclick="saveStake()">Save</button>
+        </div>
+        <div id="stake-display" style="font-size:14px;font-weight:600;color:var(--teal);margin-top:10px;min-height:20px"></div>
+      </div>
+    </div>
+
+  </div><!-- end app-shell -->
+</div><!-- end screen-app -->
+
+<!-- Bottom Nav -->
+<div class="bottom-nav" id="bottom-nav" style="display:none">
+  <button class="nav-item active" data-view="feed" onclick="switchView('feed',this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+    <span class="nav-label">Feed</span>
+  </button>
+  <button class="nav-item" data-view="myday" onclick="switchView('myday',this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><polyline points="9 16 11 18 15 14"/></svg>
+    <span class="nav-label">My day</span>
+  </button>
+  <button class="nav-item" data-view="reflect" onclick="switchView('reflect',this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+    <span class="nav-label">Reflect</span>
+  </button>
+  <button class="nav-item" data-view="weekly" onclick="switchView('weekly',this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+    <span class="nav-label">Weekly</span>
+  </button>
+  <button class="nav-item" data-view="group" onclick="switchView('group',this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+    <span class="nav-label">Group</span>
+  </button>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ─── SUPABASE CONFIG ───────────────────────────────────────────────
+// REPLACE THESE TWO VALUES WITH YOUR OWN FROM supabase.com
+const SUPABASE_URL = 'YOUR_SUPABASE_URL';
+const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
+// ──────────────────────────────────────────────────────────────────
+
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+let S = { user: null, groupId: null, groupCode: null, members: [], tasks: [], stake: '' };
+let joinMode = false;
+let feedSub = null;
+let taskSub = null;
+
+const AVATAR_COLORS = [
+  ['#E1F5EE','#085041'],['#EEEDFE','#3C3489'],['#FAECE7','#712B13'],
+  ['#FBEAF0','#72243E'],['#E6F1FB','#0C447C'],['#EAF3DE','#27500A'],['#FAEEDA','#633806']
+];
+
+function colorFor(name) {
+  const i = (name.charCodeAt(0) + (name.charCodeAt(1)||0)) % AVATAR_COLORS.length;
+  return AVATAR_COLORS[i];
+}
+function initials(name) { return name.slice(0,2).toUpperCase(); }
+function todayKey() { return new Date().toISOString().slice(0,10); }
+function weekKey() {
+  const d = new Date(); const day = d.getDay();
+  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+  return new Date(d.setDate(diff)).toISOString().slice(0,10);
+}
+function fmtTime(ts) {
+  return new Date(ts).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+}
+function showErr(msg) { document.getElementById('setup-err').textContent = msg; }
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// ─── ONBOARDING ────────────────────────────────────────────────────
+function toggleMode() {
+  joinMode = !joinMode;
+  document.getElementById('join-fields').style.display = joinMode ? 'block' : 'none';
+  document.getElementById('main-btn').textContent = joinMode ? 'Join group' : 'Create a group';
+  document.getElementById('mode-btn').textContent = joinMode ? 'Create a new group instead' : 'Join an existing group';
+  showErr('');
+}
+
+async function handleMain() {
+  if (joinMode) await joinGroup(); else await createGroup();
+}
+
+async function createGroup() {
+  const name = document.getElementById('setup-name').value.trim();
+  if (!name) { showErr('Enter your name first.'); return; }
+  showErr('');
+  document.getElementById('main-btn').textContent = 'Creating...';
+  document.getElementById('main-btn').disabled = true;
+
+  try {
+    const code = Math.random().toString(36).slice(2,8).toUpperCase();
+    const { data: group, error: ge } = await sb.from('groups').insert({ code, stake: '' }).select().single();
+    if (ge) throw ge;
+
+    const { data: member, error: me } = await sb.from('members')
+      .insert({ group_id: group.id, name, streak: 0 }).select().single();
+    if (me) throw me;
+
+    S.user = { id: member.id, name };
+    S.groupId = group.id;
+    S.groupCode = code;
+    localStorage.setItem('pact_session', JSON.stringify({ userId: member.id, groupId: group.id, code }));
+
+    await postFeed('joined', `${name} created the pact`, false);
+    await enterApp();
+  } catch(e) {
+    showErr('Something went wrong. Check your Supabase config.');
+    console.error(e);
+    document.getElementById('main-btn').textContent = 'Create a group';
+    document.getElementById('main-btn').disabled = false;
+  }
+}
+
+async function joinGroup() {
+  const name = document.getElementById('setup-name').value.trim();
+  const code = document.getElementById('join-code').value.trim().toUpperCase();
+  if (!name) { showErr('Enter your name first.'); return; }
+  if (!code || code.length < 6) { showErr('Enter the 6-character group code.'); return; }
+  showErr('');
+  document.getElementById('main-btn').textContent = 'Joining...';
+  document.getElementById('main-btn').disabled = true;
+
+  try {
+    const { data: group, error: ge } = await sb.from('groups').select().eq('code', code).single();
+    if (ge || !group) { showErr('Group not found. Check the code.'); document.getElementById('main-btn').textContent = 'Join group'; document.getElementById('main-btn').disabled = false; return; }
+
+    const { data: member, error: me } = await sb.from('members')
+      .insert({ group_id: group.id, name, streak: 0 }).select().single();
+    if (me) throw me;
+
+    S.user = { id: member.id, name };
+    S.groupId = group.id;
+    S.groupCode = code;
+    localStorage.setItem('pact_session', JSON.stringify({ userId: member.id, groupId: group.id, code }));
+
+    await postFeed('joined', `${name} joined the pact`, false);
+    await enterApp();
+  } catch(e) {
+    showErr('Something went wrong. Try again.');
+    console.error(e);
+    document.getElementById('main-btn').textContent = 'Join group';
+    document.getElementById('main-btn').disabled = false;
+  }
+}
+
+async function restoreSession() {
+  const saved = localStorage.getItem('pact_session');
+  if (!saved) return false;
+  try {
+    const { userId, groupId, code } = JSON.parse(saved);
+    const { data: member } = await sb.from('members').select().eq('id', userId).single();
+    if (!member) { localStorage.removeItem('pact_session'); return false; }
+    S.user = { id: member.id, name: member.name };
+    S.groupId = groupId;
+    S.groupCode = code;
+    return true;
+  } catch(e) { localStorage.removeItem('pact_session'); return false; }
+}
+
+// ─── APP INIT ──────────────────────────────────────────────────────
+async function enterApp() {
+  document.getElementById('screen-onboard').classList.remove('active');
+  document.getElementById('screen-app').classList.add('active');
+  document.getElementById('bottom-nav').style.display = 'flex';
+  await loadAll();
+  subscribeToFeed();
+}
+
+async function loadAll() {
+  await Promise.all([loadMembers(), loadTasks(), loadStake()]);
+  renderTopbar();
+  renderStats();
+  renderFeed();
+  renderTasks();
+  renderMembers();
+  renderLeaderboard();
+}
+
+async function loadMembers() {
+  const { data } = await sb.from('members').select().eq('group_id', S.groupId);
+  S.members = data || [];
+}
+
+async function loadTasks() {
+  const { data } = await sb.from('tasks')
+    .select().eq('member_id', S.user.id).eq('day', todayKey());
+  S.tasks = data || [];
+}
+
+async function loadStake() {
+  const { data } = await sb.from('groups').select('stake').eq('id', S.groupId).single();
+  if (data) {
+    S.stake = data.stake || '';
+    const el = document.getElementById('stake-display');
+    if (el && S.stake) el.textContent = 'The stake: ' + S.stake;
+    const inp = document.getElementById('stake-input');
+    if (inp && S.stake) inp.value = S.stake;
+  }
+}
+
+// ─── REAL-TIME FEED ────────────────────────────────────────────────
+function subscribeToFeed() {
+  if (feedSub) sb.removeChannel(feedSub);
+  feedSub = sb.channel('feed-' + S.groupId)
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'feed', filter: `group_id=eq.${S.groupId}` },
+      () => { renderFeed(); })
+    .subscribe();
+}
+
+async function postFeed(type, msg, isPrivate) {
+  await sb.from('feed').insert({
+    group_id: S.groupId, member_id: S.user.id,
+    member_name: S.user.name, type, msg, is_private: isPrivate
+  });
+}
+
+// ─── RENDER ────────────────────────────────────────────────────────
+function renderTopbar() {
+  document.getElementById('topbar-title').textContent = 'Pact · ' + S.groupCode;
+  document.getElementById('topbar-sub').textContent = S.members.length + ' member' + (S.members.length !== 1 ? 's' : '') + ' · today';
+  document.getElementById('topbar-user').textContent = S.user.name;
+}
+
+function renderStats() {
+  const done = S.tasks.filter(t => t.done).length;
+  const streak = parseInt(localStorage.getItem('pact_streak_' + S.user.id) || '0');
+  document.getElementById('s-streak').textContent = streak + 'd';
+  document.getElementById('s-done').textContent = done + '/' + S.tasks.length;
+  document.getElementById('s-members').textContent = S.members.length;
+}
+
+async function renderFeed() {
+  const { data: feed } = await sb.from('feed')
+    .select().eq('group_id', S.groupId)
+    .order('created_at', { ascending: false }).limit(30);
+
+  const el = document.getElementById('feed-list');
+  if (!feed || !feed.length) { el.innerHTML = '<div class="empty">No activity yet — add your first task.</div>'; return; }
+
+  el.innerHTML = feed.map(f => {
+    const [bg, fg] = colorFor(f.member_name);
+    const badges = {
+      joined: '<span class="badge badge-new">new member</span>',
+      streak_broken: '<span class="badge badge-broken">streak reset</span>',
+      weekly: '<span class="badge badge-streak">check-in</span>'
+    };
+    return `<div class="feed-item">
+      <div class="avatar" style="background:${bg};color:${fg}">${initials(f.member_name)}</div>
+      <div>
+        <div class="feed-text"><strong>${f.member_name}</strong> ${f.is_private ? 'completed a private task' : f.msg}${badges[f.type] || ''}</div>
+        <div class="feed-time">${fmtTime(f.created_at)}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderTasks() {
+  const el = document.getElementById('task-list');
+  if (!S.tasks.length) { el.innerHTML = '<div class="empty">No tasks yet. Add one below.</div>'; return; }
+  el.innerHTML = S.tasks.map(t => `
+    <div class="task-row" id="task-row-${t.id}">
+      <input type="checkbox" class="task-check" ${t.done ? 'checked' : ''} onchange="toggleTask('${t.id}', this.checked)"/>
+      <span class="task-name ${t.done ? 'done' : ''}">${t.is_private && t.done ? 'Private task' : escHtml(t.name)}</span>
+      <button class="priv-btn ${t.is_private ? 'on' : ''}" onclick="togglePrivacy('${t.id}')">${t.is_private ? 'private' : 'public'}</button>
+      <button class="del-btn" onclick="deleteTask('${t.id}')">×</button>
+    </div>`).join('');
+}
+
+function renderMembers() {
+  const el = document.getElementById('members-list');
+  document.getElementById('code-display').textContent = S.groupCode;
+  if (!S.members.length) { el.innerHTML = '<div class="empty">No members yet.</div>'; return; }
+  el.innerHTML = S.members.map(m => {
+    const [bg, fg] = colorFor(m.name);
+    const isMe = m.id === S.user.id;
+    return `<div class="member-row">
+      <div class="avatar" style="background:${bg};color:${fg};width:32px;height:32px;font-size:11px">${initials(m.name)}</div>
+      <div style="flex:1;font-size:14px;color:var(--text)">${escHtml(m.name)}${isMe ? ' <span style="color:var(--text3);font-size:12px">(you)</span>' : ''}</div>
+    </div>`;
+  }).join('');
+}
+
+async function renderLeaderboard() {
+  const el = document.getElementById('leaderboard');
+  const today = todayKey();
+  const rows = await Promise.all(S.members.map(async m => {
+    const { data: tasks } = await sb.from('tasks').select().eq('member_id', m.id).eq('day', today);
+    const total = tasks ? tasks.length : 0;
+    const done = tasks ? tasks.filter(t => t.done).length : 0;
+    const pct = total > 0 ? Math.round(done / total * 100) : 0;
+    return { name: m.name, pct, total };
+  }));
+  rows.sort((a, b) => b.pct - a.pct);
+  const withTasks = rows.filter(r => r.total > 0);
+  const minPct = withTasks.length > 1 ? Math.min(...withTasks.map(r => r.pct)) : -1;
+
+  el.innerHTML = rows.map((r, i) => {
+    const hook = r.pct === minPct && r.total > 0 && withTasks.length > 1;
+    return `<div class="lb-row">
+      <div class="lb-rank">${i + 1}</div>
+      <div class="lb-name">${escHtml(r.name)}${hook ? '<span class="badge badge-hook">on the hook</span>' : ''}</div>
+      <div class="lb-bar-wrap"><div class="lb-bar ${hook ? 'low' : ''}" style="width:${r.pct}%"></div></div>
+      <div class="lb-pct">${r.pct}%</div>
+    </div>`;
+  }).join('') || '<div class="empty">No tasks logged yet today.</div>';
+
+  // Stake reminder
+  if (S.stake && withTasks.length > 1) {
+    const loser = rows[rows.length - 1];
+    el.innerHTML += `<div style="margin-top:12px;padding-top:12px;border-top:0.5px solid var(--border);font-size:13px;color:var(--text2)">
+      Stake this week: <strong style="color:var(--text)">${escHtml(S.stake)}</strong>
+    </div>`;
+  }
+}
+
+// ─── TASKS ─────────────────────────────────────────────────────────
+async function addTask() {
+  const inp = document.getElementById('new-task');
+  const name = inp.value.trim();
+  if (!name) return;
+  inp.value = '';
+  const { data: task, error } = await sb.from('tasks')
+    .insert({ member_id: S.user.id, group_id: S.groupId, name, done: false, is_private: false, day: todayKey() })
+    .select().single();
+  if (error) { toast('Error adding task'); return; }
+  S.tasks.push(task);
+  renderTasks(); renderStats();
+  await postFeed('logged', `logged a task: ${name}`, false);
+}
+
+async function toggleTask(id, checked) {
+  const task = S.tasks.find(t => t.id === id);
+  if (!task) return;
+  await sb.from('tasks').update({ done: checked }).eq('id', id);
+  task.done = checked;
+  renderTasks(); renderStats();
+  if (checked) {
+    await postFeed('completed', `completed: ${task.name}`, task.is_private);
+    checkStreak();
+  }
+}
+
+async function togglePrivacy(id) {
+  const task = S.tasks.find(t => t.id === id);
+  if (!task) return;
+  task.is_private = !task.is_private;
+  await sb.from('tasks').update({ is_private: task.is_private }).eq('id', id);
+  renderTasks();
+}
+
+async function deleteTask(id) {
+  await sb.from('tasks').delete().eq('id', id);
+  S.tasks = S.tasks.filter(t => t.id !== id);
+  renderTasks(); renderStats();
+}
+
+function checkStreak() {
+  if (S.tasks.length > 0 && S.tasks.every(t => t.done)) {
+    const streak = parseInt(localStorage.getItem('pact_streak_' + S.user.id) || '0') + 1;
+    localStorage.setItem('pact_streak_' + S.user.id, streak);
+    renderStats();
+    if (streak > 1) toast('🔥 ' + streak + ' day streak!');
+  }
+}
+
+// ─── REFLECT ───────────────────────────────────────────────────────
+async function saveReflection() {
+  const well = document.getElementById('went-well').value.trim();
+  const didnt = document.getElementById('didnt-go').value.trim();
+  if (!well && !didnt) { toast('Write something first.'); return; }
+  await sb.from('reflections').insert({
+    member_id: S.user.id, group_id: S.groupId,
+    went_well: well, didnt_go: didnt, day: todayKey()
+  });
+  await postFeed('reflected', 'logged their end-of-day reflection', false);
+  document.getElementById('went-well').value = '';
+  document.getElementById('didnt-go').value = '';
+  toast('Reflection saved.');
+}
+
+// ─── WEEKLY ────────────────────────────────────────────────────────
+async function saveWeekly() {
+  const vals = ['energy','focus','progress','mood','group'].map(k =>
+    parseInt(document.getElementById('v-' + k).textContent));
+  const avg = Math.round(vals.reduce((a,b) => a+b, 0) / vals.length);
+  await sb.from('weekly_checkins').insert({
+    member_id: S.user.id, group_id: S.groupId,
+    week: weekKey(), energy: vals[0], focus: vals[1],
+    progress: vals[2], mood: vals[3], group_help: vals[4], avg_score: avg
+  });
+  await postFeed('weekly', `completed their weekly check-in (avg ${avg}/10)`, false);
+  toast('Check-in submitted!');
+}
+
+// ─── GROUP ─────────────────────────────────────────────────────────
+async function saveStake() {
+  const val = document.getElementById('stake-input').value.trim();
+  if (!val) return;
+  S.stake = val;
+  await sb.from('groups').update({ stake: val }).eq('id', S.groupId);
+  document.getElementById('stake-display').textContent = 'The stake: ' + val;
+  await postFeed('stake', `set the group stake: ${val}`, false);
+  toast('Stake saved!');
+}
+
+function copyCode() {
+  navigator.clipboard.writeText(S.groupCode).then(() => toast('Code copied!')).catch(() => {
+    prompt('Share this code:', S.groupCode);
+  });
+}
+
+function leaveGroup() {
+  if (!confirm('Leave this group? You can rejoin with the code.')) return;
+  localStorage.removeItem('pact_session');
+  location.reload();
+}
+
+// ─── NAVIGATION ────────────────────────────────────────────────────
+function switchView(name, btn) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+  document.getElementById('view-' + name).classList.add('active');
+  if (btn) btn.classList.add('active');
+  if (name === 'weekly') renderLeaderboard();
+  if (name === 'feed') renderFeed();
+  if (name === 'group') { renderMembers(); loadStake(); }
+}
+
+// ─── UTILS ─────────────────────────────────────────────────────────
+function escHtml(str) {
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ─── BOOT ──────────────────────────────────────────────────────────
+(async () => {
+  const restored = await restoreSession();
+  if (restored) await enterApp();
+})();
+</script>
+</body>
+</html>
